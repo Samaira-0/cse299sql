@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Injection Detector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            background: #f8fafc;
+            transition: all 0.3s ease;
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f1f3f4;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e8eaed;
+            transform: translateY(-1px);
+        }
+
+        .examples {
+            margin-bottom: 30px;
+        }
+
+        .examples h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.3em;
+        }
+
+        .example-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .example-btn {
+            padding: 8px 16px;
+            background: #f0f2f5;
+            border: 1px solid #d1d5db;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            color: #555;
+        }
+
+        .example-btn:hover {
+            background: #e5e7eb;
+            transform: translateY(-1px);
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .result.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .result.safe {
+            background: linear-gradient(45deg, #4ade80, #22c55e);
+            color: white;
+            border: 2px solid #16a34a;
+        }
+
+        .result.danger {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+            color: white;
+            border: 2px solid #b91c1c;
+        }
+
+        .score {
+            margin-top: 10px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .api-info {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .api-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .api-info code {
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .error {
+            background: linear-gradient(45deg, #f59e0b, #d97706);
+            color: white;
+            border: 2px solid #b45309;
+        }
+
+        .api-status {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .api-status.online {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .api-status.offline {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .example-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ SQL Injection Detector</h1>
+        <p class="subtitle">AI-powered SQL injection detection using LSTM neural networks</p>
+        
+        <div id="apiStatus" class="api-status offline">
+            🔴 Checking API connection...
+        </div>
+        
+        <div class="examples">
+            <h3>Quick Examples:</h3>
+            <div class="example-buttons">
+                <button class="example-btn" onclick="setExample('SELECT * FROM users WHERE id = 1')">Normal Query</button>
+                <button class="example-btn" onclick="setExample(`' OR '1'='1' --`)">Basic SQLi</button>
+                <button class="example-btn" onclick="setExample(`1' UNION SELECT username, password FROM users--`)">Union Attack</button>
+                <button class="example-btn" onclick="setExample(`admin'; DROP TABLE users; --`)">Drop Table</button>
+                <button class="example-btn" onclick="setExample(`1' AND (SELECT COUNT(*) FROM users) > 0 --`)">Blind SQLi</button>
+            </div>
+        </div>
+
+        <form id="sqlForm">
+            <div class="form-group">
+                <label for="sqlQuery">Enter SQL Query or Input:</label>
+                <textarea 
+                    id="sqlQuery" 
+                    name="sqlQuery" 
+                    placeholder="Enter your SQL query or user input here...
+
+Examples:
+- SELECT * FROM users WHERE id = 1
+- ' OR '1'='1' --
+- admin'; DROP TABLE users; --"
+                    required
+                ></textarea>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit" class="btn-primary">🔍 Analyze Query</button>
+                <button type="button" class="btn-secondary" onclick="clearForm()">🗑️ Clear</button>
+            </div>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing query with AI model...</p>
+        </div>
+
+        <div id="result" class="result"></div>
+
+        <div class="api-info">
+            <h3>API Integration</h3>
+            <p><strong>Endpoint:</strong> <code>POST http://localhost:5000/api/predict-sqli</code></p>
+            <p><strong>Request Body:</strong> <code>{"query": "your_sql_query_here"}</code></p>
+            <p><strong>Response:</strong> <code>{"prediction": "safe/malicious", "confidence": 0.95, "score": 0.02}</code></p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:5000';
+        let apiOnline = false;
+
+        // Check API status on page load
+        checkAPIStatus();
+
+        function setExample(query) {
+            document.getElementById('sqlQuery').value = query;
+        }
+
+        function clearForm() {
+            document.getElementById('sqlQuery').value = '';
+            document.getElementById('result').classList.remove('show');
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').classList.remove('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showResult(data) {
+            const resultDiv = document.getElementById('result');
+            const isMalicious = data.prediction === 'malicious';
+            
+            resultDiv.className = `result ${isMalicious ? 'danger' : 'safe'}`;
+            resultDiv.innerHTML = `
+                <div>
+                    ${isMalicious ? '⚠️ SQL INJECTION DETECTED' : '✅ QUERY APPEARS SAFE'}
+                </div>
+                <div class="score">
+                    Confidence: ${(data.confidence * 100).toFixed(1)}% | 
+                    Risk Score: ${(data.score * 100).toFixed(1)}% | 
+                    Risk Level: ${data.risk_level ? data.risk_level.toUpperCase() : 'N/A'}
+                </div>
+            `;
+            
+            // Trigger animation
+            setTimeout(() => {
+                resultDiv.classList.add('show');
+            }, 100);
+        }
+
+        function showError(message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result error';
+            resultDiv.innerHTML = `
+                <div>❌ Error</div>
+                <div class="score">${message}</div>
+            `;
+            
+            setTimeout(() => {
+                resultDiv.classList.add('show');
+            }, 100);
+        }
+
+        async function checkAPIStatus() {
+            const statusDiv = document.getElementById('apiStatus');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    apiOnline = true;
+                    statusDiv.className = 'api-status online';
+                    statusDiv.innerHTML = `🟢 API Online - Model: ${data.model_loaded ? 'Loaded' : 'Not Loaded'}`;
+                } else {
+                    throw new Error('API not responding');
+                }
+            } catch (error) {
+                apiOnline = false;
+                statusDiv.className = 'api-status offline';
+                statusDiv.innerHTML = '🔴 API Offline - Make sure Flask server is running on port 5000';
+                console.error('API Status Check Error:', error);
+            }
+        }
+
+        async function predictQuery(query) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/predict-sqli`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Prediction Error:', error);
+                throw error;
+            }
+        }
+
+        // Form submission handler
+        document.getElementById('sqlForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const query = document.getElementById('sqlQuery').value.trim();
+            if (!query) return;
+
+            if (!apiOnline) {
+                showError('API is offline. Please start the Flask server.');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const result = await predictQuery(query);
+                hideLoading();
+                showResult(result);
+                
+                // Log the result for debugging
+                console.log('Prediction Result:', result);
+            } catch (error) {
+                hideLoading();
+                showError(`Failed to analyze query: ${error.message}`);
+                
+                // Re-check API status
+                setTimeout(checkAPIStatus, 1000);
+            }
+        });
+
+        // Auto-resize textarea
+        document.getElementById('sqlQuery').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.max(120, this.scrollHeight) + 'px';
+        });
+
+        // Check API status every 30 seconds
+        setInterval(checkAPIStatus, 30000);
+    </script>
+</body>
+</html>
